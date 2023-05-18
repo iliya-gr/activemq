@@ -22,7 +22,7 @@ import static org.mockito.Mockito.mock;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,7 +89,7 @@ public class DataFileAccessorTest {
         final File file = dataDir.newFile();
         final byte[] data = new byte[size];
         Arrays.fill(data, (byte)0);
-        Files.write(Path.of(file.toURI()), data);
+        Files.write(Paths.get(file.toURI()), data);
         assertEquals(1024, file.length());
         return file;
     }

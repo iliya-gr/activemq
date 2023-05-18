@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -230,7 +231,7 @@ public class JournalCorruptionEofIndexRecoveryTest {
             public void doAppend(LoggingEvent event) {
                 if (event.getLevel() == Level.WARN
                         && event.getRenderedMessage().contains("Cannot recover message audit")
-                        && event.getThrowableInformation().getThrowable().getLocalizedMessage().contains("Invalid location size")) {
+                        && event.getThrowableInformation().getThrowable() instanceof EOFException) {
                     trappedExpectedLogMessage.set(true);
                 }
             }
