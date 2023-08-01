@@ -58,6 +58,7 @@ public class BrokerDestinationViewTest {
     @Before
     public void setUp() throws Exception {
         brokerService = new BrokerService();
+        brokerService.setBrokerName(BrokerService.DEFAULT_BROKER_NAME);
         brokerService.setPersistent(false);
         brokerService.start();
 
@@ -87,7 +88,7 @@ public class BrokerDestinationViewTest {
 
          }
 
-         MessageBrokerView messageBrokerView = MessageBrokerViewRegistry.getInstance().lookup("");
+         MessageBrokerView messageBrokerView = MessageBrokerViewRegistry.getInstance().lookup(BrokerService.DEFAULT_BROKER_NAME);
          BrokerDestinationView destinationView = messageBrokerView.getQueueDestinationView(queueName);
          assertEquals(destinationView.getQueueSize(),messageCount);
 

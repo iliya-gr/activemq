@@ -43,20 +43,9 @@ public class BrokerRegistry {
      * @return the BrokerService
      */
     public BrokerService lookup(String brokerName) {
-        BrokerService result = null;
         synchronized (mutex) {
-            result = brokers.get(brokerName);
-            if (result == null && brokerName != null && brokerName.equals(BrokerService.DEFAULT_BROKER_NAME)) {
-                result = findFirst();
-                if (result != null) {
-                    LOG.warn("Broker localhost not started so using {} instead", result.getBrokerName());
-                }
-            }
-            if (result == null && (brokerName==null || brokerName.isEmpty() || brokerName.equals("null"))){
-                result = findFirst();
-            }
+            return brokers.get(brokerName);
         }
-        return result;
     }
 
     /**

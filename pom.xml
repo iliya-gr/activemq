@@ -200,10 +200,15 @@
       <url>${staging.siteURL}/maven/${project.version}</url>
       <!--<url>${site-repo-url}</url>-->
     </site>
+    <repository>
+      <id>nexus</id>
+      <name>Factor Nexus Repository</name>
+      <url>http://192.168.58.240:8081/repository/maven-releases/</url>
+    </repository>
     <snapshotRepository>
-      <id>apache.snapshots.https</id>
-      <name>Apache Development Snapshot Repository</name>
-      <url>https://repository.apache.org/content/repositories/snapshots</url>
+      <id>nexus</id>
+      <name>Factor Nexus Snapshot Repository</name>
+      <url>http://192.168.58.240:8081/repository/maven-snapshots/</url>
       <uniqueVersion>false</uniqueVersion>
     </snapshotRepository>
   </distributionManagement>
@@ -249,9 +254,9 @@
   </modules>
 
   <scm>
-    <connection>scm:git:http://gitbox.apache.org/repos/asf/activemq.git</connection>
-    <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/activemq.git</developerConnection>
-    <url>https://github.com/apache/activemq</url>
+    <connection>scm:git:http://192.168.57.230/factor-esb/activemq.git</connection>
+    <developerConnection>scm:git:http://192.168.57.230/factor-esb/activemq.git</developerConnection>
+    <url>http://192.168.57.230/factor-esb/activemq</url>
     <tag>activemq-5.16.0</tag>
   </scm>
 
