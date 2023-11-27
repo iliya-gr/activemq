@@ -25,7 +25,7 @@
 
   <groupId>org.apache.activemq</groupId>
   <artifactId>activemq-parent</artifactId>
-  <version>5.16.7-factor-SNAPSHOT</version>
+  <version>5.16.7-factor</version>
   <packaging>pom</packaging>
   <name>ActiveMQ</name>
   <inceptionYear>2005</inceptionYear>
@@ -257,7 +257,7 @@
     <connection>scm:git:http://192.168.57.230/factor-esb/activemq.git</connection>
     <developerConnection>scm:git:http://192.168.57.230/factor-esb/activemq.git</developerConnection>
     <url>http://192.168.57.230/factor-esb/activemq</url>
-    <tag>activemq-5.16.0</tag>
+    <tag>activemq-5.16.7-factor</tag>
   </scm>
 
   <dependencyManagement>
