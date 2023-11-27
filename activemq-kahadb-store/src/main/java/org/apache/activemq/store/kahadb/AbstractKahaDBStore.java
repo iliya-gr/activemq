@@ -59,6 +59,7 @@ public abstract class AbstractKahaDBStore extends LockableServiceSupport {
     protected boolean checkForCorruptJournalFiles = false;
     protected boolean checksumJournalFiles = true;
     protected boolean forceRecoverIndex = false;
+    protected boolean forceRebuildIndex = false;
     protected int journalMaxFileLength = Journal.DEFAULT_MAX_FILE_LENGTH;
     protected int journalMaxWriteBatchSize = Journal.DEFAULT_MAX_WRITE_BATCH_SIZE;
     protected boolean archiveCorruptedIndex = false;
@@ -225,6 +226,14 @@ public abstract class AbstractKahaDBStore extends LockableServiceSupport {
 
     public void setForceRecoverIndex(boolean forceRecoverIndex) {
         this.forceRecoverIndex = forceRecoverIndex;
+    }
+
+    public boolean isForceRebuildIndex() {
+        return forceRebuildIndex;
+    }
+
+    public void setForceRebuildIndex(boolean forceRebuildIndex) {
+        this.forceRebuildIndex = forceRebuildIndex;
     }
 
     public int getJournalMaxFileLength() {

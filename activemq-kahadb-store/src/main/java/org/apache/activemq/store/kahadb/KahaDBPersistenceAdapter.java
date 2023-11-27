@@ -840,4 +840,12 @@ public class KahaDBPersistenceAdapter extends LockableServiceSupport implements 
     public boolean getCleanupOnStop() {
         return this.letter.getCleanupOnStop();
     }
+
+    public boolean isForceRebuildIndex() {
+        return this.letter.isForceRebuildIndex();
+    }
+
+    public void setForceRebuildIndex(boolean forceRebuildIndex) {
+        this.letter.setForceRebuildIndex(forceRebuildIndex);
+    }
 }

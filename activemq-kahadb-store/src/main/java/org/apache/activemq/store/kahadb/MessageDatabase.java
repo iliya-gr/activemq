@@ -32,23 +32,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -287,6 +272,7 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
     private boolean checksumJournalFiles = true;
     protected boolean forceRecoverIndex = false;
     private boolean archiveCorruptedIndex = false;
+    private boolean forceRebuildIndex = false;
     private boolean useIndexLFRUEviction = false;
     private float indexLFUEvictionFactor = 0.2f;
     private boolean enableIndexDiskSyncs = true;
@@ -459,6 +445,23 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
     public void open() throws IOException {
         if( opened.compareAndSet(false, true) ) {
             getJournal().start();
+
+            if (forceRebuildIndex) {
+                PageFile pageFile = getPageFile();
+
+                LOG.info("Forced rebuilding index file {}", pageFile.getFile());
+
+                if (archiveCorruptedIndex) {
+                    LOG.info("Archiving index file {}", pageFile.getFile());
+                    pageFile.archive();
+                } else {
+                    LOG.info("Deleting index file {}", pageFile.getFile());
+                    pageFile.delete();
+                }
+                // Reset pageFile
+                this.pageFile = null;
+            }
+
             try {
                 loadPageFile();
             } catch (Throwable t) {
@@ -469,7 +472,8 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
                 // try to recover index
                 try {
                     pageFile.unload();
-                } catch (Exception ignore) {}
+                } catch (Exception ignore) {
+                }
                 if (archiveCorruptedIndex) {
                     pageFile.archive();
                 } else {
@@ -511,6 +515,8 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
 
     public void close() throws IOException, InterruptedException {
         if (opened.compareAndSet(true, false)) {
+            Deque<Throwable> errors = new ArrayDeque<>();
+
             checkpointLock.writeLock().lock();
             try {
                 if (metadata.page != null) {
@@ -518,10 +524,20 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
                 }
                 pageFile.unload();
                 metadata = createMetadata();
+            } catch (Throwable e) {
+                LOG.error("Failed to update checkpoint on stop", e);
+                errors.offer(e);
             } finally {
                 checkpointLock.writeLock().unlock();
             }
-            journal.close();
+
+            try {
+                journal.close();
+            } catch (Throwable e) {
+                LOG.error("Failed to close journal", e);
+                errors.offer(e);
+            }
+
             synchronized(schedulerLock) {
                 if (scheduler != null) {
                     ThreadPoolUtils.shutdownGraceful(scheduler, -1);
@@ -531,6 +547,16 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
             // clear the cache and journalSize on shutdown of the store
             storeCache.clear();
             journalSize.set(0);
+
+            if (!errors.isEmpty()) {
+                Throwable error = errors.poll();
+
+                if (error instanceof IOException) {
+                    throw (IOException) error;
+                } else {
+                    throw new RuntimeException("Unexpected exception during message database stop: " + error, error);
+                }
+            }
         }
     }
 
@@ -3659,6 +3685,14 @@ public abstract class MessageDatabase extends ServiceSupport implements BrokerSe
 
     public void setArchiveCorruptedIndex(boolean archiveCorruptedIndex) {
         this.archiveCorruptedIndex = archiveCorruptedIndex;
+    }
+
+    public boolean isForceRebuildIndex() {
+        return forceRebuildIndex;
+    }
+
+    public void setForceRebuildIndex(boolean forceRebuildIndex) {
+        this.forceRebuildIndex = forceRebuildIndex;
     }
 
     public float getIndexLFUEvictionFactor() {

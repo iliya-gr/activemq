@@ -21,17 +21,8 @@ import java.io.DataOutput;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
 
 import org.apache.activemq.broker.scheduler.JobScheduler;
 import org.apache.activemq.broker.scheduler.JobSchedulerStore;
@@ -170,6 +161,23 @@ public class JobSchedulerStoreImpl extends AbstractKahaDBStore implements JobSch
     public void load() throws IOException {
         if (opened.compareAndSet(false, true)) {
             getJournal().start();
+
+            if (forceRebuildIndex) {
+                PageFile pageFile = getPageFile();
+
+                LOG.info("Forced rebuilding index file {}", pageFile.getFile());
+
+                if (archiveCorruptedIndex) {
+                    LOG.info("Archiving index file {}", pageFile.getFile());
+                    pageFile.archive();
+                } else {
+                    LOG.info("Deleting index file {}", pageFile.getFile());
+                    pageFile.delete();
+                }
+                // Reset pageFile
+                this.pageFile = null;
+            }
+
             try {
                 loadPageFile();
             } catch (UnknownStoreVersionException ex) {
@@ -231,14 +239,20 @@ public class JobSchedulerStoreImpl extends AbstractKahaDBStore implements JobSch
                 this.indexLock.writeLock().unlock();
             }
 
+            Deque<Throwable> errors = new ArrayDeque<>();
+
             checkpointLock.writeLock().lock();
             try {
                 if (metaData.getPage() != null) {
                     checkpointUpdate(getCleanupOnStop());
                 }
+            } catch (Throwable e) {
+                errors.offer(e);
+                LOG.error("Failed to update checkpoint on close", e);
             } finally {
                 checkpointLock.writeLock().unlock();
             }
+
             synchronized (checkpointThreadLock) {
                 if (checkpointThread != null) {
                     try {
@@ -250,12 +264,33 @@ public class JobSchedulerStoreImpl extends AbstractKahaDBStore implements JobSch
             }
 
             if (pageFile != null) {
-                pageFile.unload();
-                pageFile = null;
+                try {
+                    pageFile.unload();
+                    pageFile = null;
+                } catch (Throwable e) {
+                    errors.offer(e);
+                    LOG.error("Failed to unload page file on close", e);
+                }
             }
+
             if (this.journal != null) {
-                journal.close();
-                journal = null;
+                try {
+                    journal.close();
+                    journal = null;
+                } catch (Throwable e) {
+                    errors.offer(e);
+                    LOG.error("Failed to close journal", e);
+                }
+            }
+
+            if (!errors.isEmpty()) {
+                Throwable error = errors.poll();
+
+                if (error instanceof IOException) {
+                    throw (IOException) error;
+                } else {
+                    throw new RuntimeException("Unexpected exception during message database stop: " + error, error);
+                }
             }
 
             metaData = new JobSchedulerKahaDBMetaData(this);
