@@ -233,7 +233,9 @@ public class BrokerService implements Service {
     private boolean dedicatedTaskRunner;
     private boolean cacheTempDestinations = false;// useful for failover
     private int timeBeforePurgeTempDestinations = 5000;
+    private final List<Runnable> startupHooks = new ArrayList<>();
     private final List<Runnable> shutdownHooks = new ArrayList<>();
+    private final List<Runnable> startExceptionHooks = new ArrayList<>();
     private boolean systemExitOnShutdown;
     private int systemExitOnShutdownExitCode;
     private SslContext sslContext;
@@ -272,6 +274,7 @@ public class BrokerService implements Service {
     private boolean rollbackOnlyOnAsyncException = true;
 
     private int storeOpenWireVersion = OpenWireFormat.DEFAULT_STORE_VERSION;
+
     private final List<Runnable> preShutdownHooks = new CopyOnWriteArrayList<>();
 
     static {
@@ -641,6 +644,13 @@ public class BrokerService implements Service {
             if (brokerRegistry.lookup(getBrokerName()) == null) {
                 brokerRegistry.bind(getBrokerName(), BrokerService.this);
             }
+
+            synchronized (startupHooks) {
+                for (Runnable hook : startupHooks) {
+                    hook.run();
+                }
+            }
+
             startPersistenceAdapter(startAsync);
             startBroker(startAsync);
             brokerRegistry.bind(getBrokerName(), BrokerService.this);
@@ -1377,6 +1387,14 @@ public class BrokerService implements Service {
 
     synchronized private void setStartException(Throwable t) {
         startException = t;
+
+        try {
+            for (Runnable exceptionHook : startExceptionHooks) {
+                exceptionHook.run();
+            }
+        } catch (Throwable ignore) {
+            // Ignore any hook error
+        }
     }
 
     public void setManagementContext(ManagementContext managementContext) {
@@ -2904,6 +2922,18 @@ public class BrokerService implements Service {
         preShutdownHooks.remove(hook);
     }
 
+    public  void addStartupHook(Runnable hook) {
+        synchronized (startupHooks) {
+            startupHooks.add(hook);
+        }
+    }
+
+    public synchronized void removeStartupHook(Runnable hook) {
+        synchronized (startupHooks) {
+            startupHooks.remove(hook);
+        }
+    }
+
     public void addShutdownHook(Runnable hook) {
         synchronized (shutdownHooks) {
             shutdownHooks.add(hook);
@@ -2914,6 +2944,14 @@ public class BrokerService implements Service {
         synchronized (shutdownHooks) {
             shutdownHooks.remove(hook);
         }
+    }
+
+    public synchronized void addStartExceptionHook(Runnable hook) {
+        startExceptionHooks.add(hook);
+    }
+
+    public synchronized void removeStartExceptionHook(Runnable hook) {
+        startExceptionHooks.remove(hook);
     }
 
     public boolean isSystemExitOnShutdown() {
